@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=7,IE=9" />
+<meta name="viewport"
+	content="initial-scale=1, maximum-scale=1,user-scalable=no" />
+<title>Populate scales | isVisibleAtScale</title>
+<link rel="stylesheet"
+	href="http://serverapi.arcgisonline.com/jsapi/arcgis/3.2/js/dojo/dijit/themes/tundra/tundra.css">
+<link rel="stylesheet" type="text/css"
+	href="http://serverapi.arcgisonline.com/jsapi/arcgis/3.2/js/esri/css/esri.css" />
+
+<style>
+html,body {
+	height: 100%;
+	width: 100%;
+	margin: 0;
+	padding: 0;
+}
+
+#map {
+	margin: 0;
+	padding: 0;
+}
+
+#feedback {
+	position: absolute;
+	height: 330px;
+	font-family: arial;
+	margin: 5px;
+	padding: 5px;
+	z-index: 40;
+	background: #fff;
+	color: #444;
+	width: 300px;
+	right: 30px;
+	bottom: 30px;
+	-moz-box-shadow: 0 0 5px #888;
+	-webkit-box-shadow: 0 0 5px #888;
+	box-shadow: 0 0 5px #888;
+}
+
+h2 {
+	font-family: Verdana, Geneva, Arial, Helvetica, sans-serif;
+	font-size: 60pt;
+}
+</style>
+<script>
+	var dojoConfig = {
+		parseOnLoad : true
+	};
+</script>
+<script src="http://serverapi.arcgisonline.com/jsapi/arcgis/?v=3.2"></script>
+<script type="text/javascript">
+	dojo.require("dijit.layout.BorderContainer");
+	dojo.require("dijit.layout.ContentPane");
+	dojo.require("esri.map");
+	var app = {};
+
+	function init() {
+		app.map = new esri.Map("map", {
+			extent : new esri.geometry.Extent({
+				"xmin" : -9814575.960268047,
+				"ymin" : 5122979.367562321,
+				"xmax" : -9814378.157372441,
+				"ymax" : 5123151.452906492,
+				"spatialReference" : {
+					"wkid" : 3857
+				}
+			})
+		});
+		dojo.connect(app.map, "onLayerAdd", onLayerAdded);
+		app.baseMapLayer = new esri.layers.ArcGISTiledMapServiceLayer(
+				"http://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer");
+		app.map.addLayer(app.baseMapLayer);
+		app.scaleDependentDynService = new esri.layers.ArcGISDynamicMapServiceLayer(
+				"http://sampleserver6.arcgisonline.com/arcgis/rest/services/CommunityAddressing/MapServer",
+				{
+					"id" : "Point Layer"
+				});
+		app.map.addLayer(app.scaleDependentDynService); // There is only one layer in this service
+		
+		dojo.connect(app.map, "onExtentChange", function(extent) {
+			dojo.byId("name").innerHTML = "Is "
+					+ app.scaleDependentDynService.id + " visible at scale 1:"
+					+ esri.geometry.getScale(app.map) + "?";
+			if (app.scaleDependentDynService.isVisibleAtScale(esri.geometry
+					.getScale(app.map)) == true) {
+				dojo.style("answer", "color", "green");
+				dojo.byId("answer").innerHTML = "Yes";
+			} else {
+				dojo.style("answer", "color", "red");
+				dojo.byId("answer").innerHTML = "No";
+			}
+		});
+	}
+
+	function onLayerAdded(serviceLayer) {
+		if (serviceLayer.declaredClass == "esri.layers.ArcGISDynamicMapServiceLayer") {
+			populateScales(serviceLayer);
+		}
+	}
+
+	function populateScales(serviceLayer) {
+		var temp = [];
+		dojo.forEach(serviceLayer.layerInfos, function(layer) {
+			temp.push(layer.minScale);
+			temp.push(layer.maxScale);
+		});
+		var scaleRange = temp.sort(function(a, b) {
+			return a - b
+		});
+		serviceLayer.minScale = scaleRange[scaleRange.length - 1];
+		serviceLayer.maxScale = scaleRange[0];
+	}
+
+	dojo.addOnLoad(init);
+</script>
+</head>
+<body class="tundra">
+	<div data-dojo-type="dijit.layout.BorderContainer"
+		data-dojo-props="design:'headline',gutters:false"
+		style="width: 100%; height: 100%; margin: 0;">
+		<div id="map" data-dojo-type="dijit.layout.ContentPane"
+			data-dojo-props="region:'center'">
+
+			<div id="feedback" style="text-align: center;">
+				<h3 id="name"></h3>
+				<div id="info" style="margin-top: -20px;">
+					<h2 id="answer"></h2>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+</html>
